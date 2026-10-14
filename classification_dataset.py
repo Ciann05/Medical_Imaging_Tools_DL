@@ -22,11 +22,16 @@ def create_pathmnist_dataloaders(batch_size=32, num_workers=0, data_root='./data
     """
     print("Creating PathMNIST classification dataloaders...")
     
-    # Define transforms for PathMNIST
-    transform = transforms.Compose([
+    # Flips only on the training set. Validation stays fixed so the accuracy is stable.
+    train_transform = transforms.Compose([
+        transforms.RandomHorizontalFlip(),
+        transforms.RandomVerticalFlip(),
         transforms.ToTensor(),
         transforms.Normalize(mean=[0.5], std=[0.5])  # Normalize to [-1, 1]
-        #TODO: Hint, you may want to add "Data Augmentation" here to improve performance.
+    ])
+    val_transform = transforms.Compose([
+        transforms.ToTensor(),
+        transforms.Normalize(mean=[0.5], std=[0.5])
     ])
     
     # Create datasets (train / val only)
@@ -34,14 +39,14 @@ def create_pathmnist_dataloaders(batch_size=32, num_workers=0, data_root='./data
         split='train',
         download=True,
         root=data_root,
-        transform=transform
+        transform=train_transform
     )
     
     val_dataset = PathMNIST(
         split='val',
         download=True,
         root=data_root,
-        transform=transform
+        transform=val_transform
     )
     
     print(f"PathMNIST train dataset: {len(train_dataset)} samples")

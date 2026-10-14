@@ -1,49 +1,56 @@
-# Building Medical Imaging Tools with Deep Learning
+# Medical Imaging with Deep Learning
 
-Implement CNN architectures and segmentation models that form the core principles of state-of-the-art medical imaging systems. While modern clinical systems use large NNs on massive medical images, I used miniature 2D histopathological images (i.e. PathMNIST). These same principles—convolutional feature extraction and spatial grounding—directly translate to real-world medical imaging applications.
+PyTorch models for histopathology images. The project covers tissue-type classification and pixel-level segmentation on PathMNIST, a collection of 28×28 colon pathology patches. Real clinical systems run far larger networks on far larger images, but the same building blocks drive them: convolutional feature extraction and encoder-decoder segmentation with skip connections. Built as coursework for CPH 100A.
 
-Goal is to use deep learning fundamentals to enable clinical AI systems (not achieving peak performance through automated solutions). The secondary goal is to learn to use LLMs to make your life easier.
+## Results
 
-### Code Structure Overview
-- `classification_main.py`: Training orchestration (provided)
-- `classification_models.py`: **TODO** - Implement your classifier neural networks, including a simple MLP classifier and CNNs
-- `classification_train.py`: **TODO** - Implement training/validation loops with PyTorch
-- `classification_dataset.py`: PathMNIST data loading
-- `segmentation_models.py`: **TODO** - Implement segmentation models, including a linear model, a CNN, and a U-Net with skip connections
-- `segmentation_train.py`: **TODO** - Implement segmentation training pipeline
-- `segmentation_main.py`: Segmentation training orchestration
-- `synthetic_data.py`: Synthetic box generation for segmentation
+| Task | Model | Params | Metric | Target |
+|---|---|---|---|---|
+| 9-class tissue classification | CNN (5 epochs) | 94K | **94.9%** validation accuracy | > 90% |
+| Box segmentation | Tiny U-Net (3 epochs) | 118K | **0.999** validation IoU | > 0.97 |
 
-## Part 1: CNN Implementation for Medical Image Classification 
+Validation sets: 10,004 images for each task. Training sets: 89,996 images for each task.
 
-Implement and compare different architectures for PathMNIST tissue classification:
+![U-Net predictions](unet_predictions.png)
 
-0. **Simple Linear classifier**: Flatten input images and re-implement logistic regression in PyTorch.
-1. **MLP**: Flatten input images and use a multi-layer perceptron (MLP) model
-2. **My CNN**: Designn and implement a convolutional architecture
+## Part 1: Tissue classification
 
-**Performance Expectations (1 epoch, 100 steps):**
-- MLP Model: ~32% validation accuracy
-- My CNN: >54% validation accuracy
+The task is to classify each patch into one of 9 tissue types, such as adipose, mucus, stroma and colorectal adenocarcinoma. I built three models of increasing capacity in `classification_models.py` to show what convolution adds:
 
-**My Final Model Requirements:**
-- Train my best model on a longer training schedule. 
-- **Target**: >90% validation accuracy
+- **Linear:** logistic regression on flattened pixels, as a baseline.
+- **MLP:** two hidden layers (256 → 128) on flattened pixels.
+- **CNN:** two conv blocks (32 then 64 channels), each with two 3×3 convolutions plus BatchNorm, ReLU and max pooling, followed by a linear classifier.
 
-## Part 2: Segmentation Implementation
+The CNN reached 94.9% validation accuracy. Unlike the flattened-pixel models, it keeps the spatial structure of the image. Training uses Adam with cross-entropy loss. The training set gets random horizontal and vertical flips, which are valid for pathology tiles because tissue has no "up". The validation set stays fixed so accuracy is stable.
 
-Implement and compare different architectures for segmentation on PathMNIST:
+## Part 2: Segmentation
 
-0. **Simple Linear model**: Flatten input, predict flattened output
-1. **MLP**: Flatten input, predict flattened output with an MLP
-2. **Simple CNN**: Encoder-decoder without skip connections  
-3. **U-Net**: Full U-Net with skip connections
+Each PathMNIST image gets a randomly colored box drawn on it (`synthetic_data.py`), and the model must predict the pixel mask of that box region.
 
-**Performance Expectations (1 epoch, 100 steps):**
-- MLP: ~43% validation IoU
-- Simple CNN: >94% validation IoU  
-- U-Net: >96% validation IoU
+![Box samples](box_samples.png)
 
-**Final Model Requirements:**
-- Train my best model on a longer training schedule. 
-- **Target**: >97% validation IoU
+Models in `segmentation_models.py`:
+- **Linear and MLP:** predict all 784 mask pixels from flattened input.
+- **CNN encoder-decoder:** downsamples to 7×7 and upsamples back, with no skip connections.
+- **Tiny U-Net:** a 3-level encoder (16 → 32 → 64 channels) with skip connections that concatenate encoder features into the decoder, so fine boundary detail is recovered.
+
+The loss is an equal-weighted combination of BCE and Dice. Dice directly optimizes overlap, which keeps the model from ignoring the small foreground region.
+
+## Running it
+
+```bash
+pip install -r requirements.txt
+
+# Classification (0 = train on the full epoch instead of the 100-step quick mode)
+python classification_main.py --model_name cnn --num_epochs 5 --max_steps_per_epoch 0
+
+# Segmentation
+python segmentation_main.py --model_name unet --num_epochs 3 --max_steps_per_epoch 0
+```
+
+Model options: `linear`, `mlp` and `cnn` for classification, plus `unet` for segmentation. PathMNIST downloads automatically through the `medmnist` package into `./data`. The results above came from a CPU run.
+
+## Limitations
+
+- At 28×28, the images are far smaller than real whole-slide images, which run to gigapixels. Scaling up requires tiling, more depth, and a lot more compute.
+- The segmentation task uses synthetic boxes, so it tests whether the architecture can localize regions, not whether it can segment real anatomy. A near-perfect IoU here does not carry over to tumor or gland segmentation.

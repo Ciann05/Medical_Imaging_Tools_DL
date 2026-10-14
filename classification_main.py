@@ -1,6 +1,6 @@
 """
 Main script for PathMNIST classification (Part 1).
-Students should implement the TODO sections to achieve >90% accuracy.
+Trains a linear, MLP, or CNN classifier on 9-class PathMNIST tissue images.
 """
 
 import sys
@@ -35,7 +35,7 @@ def main(args):
             epochs=args.num_epochs,
             learning_rate=args.learning_rate,
             weight_decay=args.weight_decay,
-            max_steps_per_epoch=100  # Fast exploration mode. #TODO: Change for your full runs
+            max_steps_per_epoch=args.max_steps_per_epoch or None  # 0 = full epoch
         )
         
         print("Training completed successfully!")
@@ -55,7 +55,7 @@ if __name__ == "__main__":
     
     parser = argparse.ArgumentParser(description='CPH 100A Problem Set 2 - PathMNIST Classification')
     parser.add_argument('--model_name', type=str, default='mlp',
-                       choices=['mlp', 'cnn'], #TODO: add your models names here
+                       choices=['linear', 'mlp', 'cnn'],
                        help='Model to train')
     parser.add_argument('--learning_rate', type=float, default=0.001,
                        help='Learning rate for training')
@@ -63,6 +63,8 @@ if __name__ == "__main__":
                        help='Number of epochs to train')
     parser.add_argument('--weight_decay', type=float, default=0.0,
                        help='Weight decay for regularization')
+    parser.add_argument('--max_steps_per_epoch', type=int, default=100,
+                       help='Cap on training steps per epoch for quick runs; 0 trains on the full epoch')
     args = parser.parse_args()
     
     main(args) 

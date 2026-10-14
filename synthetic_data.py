@@ -3,6 +3,7 @@ Synthetic colored box border data generation for segmentation tasks.
 Adds 1-pixel thick colored borders to PathMNIST images.
 """
 
+import os
 import torch
 from torch.utils.data import Dataset, DataLoader
 import torchvision.transforms as transforms
@@ -300,6 +301,7 @@ def visualize_box_samples(dataset, num_samples=6, save_path=None):
     plt.tight_layout()
     
     if save_path:
+        os.makedirs(os.path.dirname(save_path) or ".", exist_ok=True)
         plt.savefig(save_path, dpi=150, bbox_inches='tight')
         print(f"Visualization saved to {save_path}")
     else:
